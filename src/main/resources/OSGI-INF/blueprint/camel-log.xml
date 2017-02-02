@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+<!--
+
+     Copyright 2005-2015 Red Hat, Inc.
+
+     Red Hat licenses this file to you under the Apache License, version
+     2.0 (the "License"); you may not use this file except in compliance
+     with the License.  You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+     implied.  See the License for the specific language governing
+     permissions and limitations under the License.
+
+-->
+<!--
+   This is the OSGi Blueprint XML file defining the Camel context and routes.  Because the file is in the
+   OSGI-INF/blueprint directory inside our JAR, it will be automatically activated as soon as the bundle is installed.
+
+   The root element for any OSGi Blueprint file is 'blueprint' - you also see the namespace definitions for both the Blueprint
+   and the Camel namespaces.
+-->
+<blueprint 
+  xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+  xmlns:ext="http://aries.apache.org/blueprint/xmlns/blueprint-ext/v1.0.0" 
+   xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="
+             http://www.osgi.org/xmlns/blueprint/v1.0.0 https://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
+             http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd">
+
+
+<!-- <ext:property-placeholder />  -->
+
+    <!-- OSGI blueprint property placeholder -->
+    <cm:property-placeholder id="myblueprint.placeholder" persistent-id="my.environment.variables"/>
+
+<bean id="mybean" class="fis.karaf.MyBean">
+  <!-- <property name="myvar" value="${MY_ENV_VAR1}"/> -->
+  <property name="myvar" value="${env:HOSTNAME}"/>
+</bean>
+    <!--
+      The namespace for the camelContext element in Blueprint is 'http://camel.apache.org/schema/blueprint'.
+
+      While it is not required to assign id's to the <camelContext/> and <route/> elements, it is a good idea
+      to set those for runtime management purposes (logging, JMX MBeans, ...)
+    -->
+    <camelContext id="log-example-context" xmlns="http://camel.apache.org/schema/blueprint" >
+
+ 
+<!--         <route id="log-route">
+          <from uri="netty4-http:http://0.0.0.0:10000/demo"/>
+            <setBody>
+                <simple>environment variable: [{{MY_ENV_VAR1}}]</simple>
+            </setBody>
+            <bean ref="mybean" method="print('{{MY_ENV_VAR2}}')"/>
+            <log message=">>> ${body} : ${sys.runtime.id}"/>
+        </route> -->
+
+
+        <route id="log-route">
+          <from uri="netty4-http:http://0.0.0.0:10000/demo"/>
+            <setBody>
+                <simple>environment variable: [{{env:HOSTNAME}}]</simple>
+            </setBody>
+            <bean ref="mybean" method="print('{{env:HOSTNAME}}')"/>
+            <log message=">>> ${body} : ${sys.runtime.id}"/>
+
+            <removeHeaders pattern="*"/>
+            <to uri="netty4-http:http://0.0.0.0:20000/target"/>
+            <convertBodyTo type="java.lang.String"/>
+            <log message="got response: ${body}"/>
+
+            <unmarshal id="unmarshalResponse">
+              <xmljson/>
+            </unmarshal>
+
+            <log message="xml response: ${body}"/>
+        </route>
+
+        <route id="stub">
+          <from uri="netty4-http:http://0.0.0.0:20000/target"/>
+            <to uri="language:constant:resource:classpath:samples/colors.json"/>
+            <log message="stub:\n ${body}"/>
+        </route>
+
+    </camelContext>
+
+</blueprint>
